@@ -21,7 +21,7 @@ use ethcore::client::BlockId;
 use ethcore::client;
 use super::BlockNumber;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize)]
 pub struct TraceFilter {
 	#[serde(rename="fromBlock")]
 	pub from_block: Option<BlockNumber>,
@@ -42,5 +42,41 @@ impl Into<client::TraceFilter> for TraceFilter {
 			from_address: self.from_address.unwrap_or_else(Vec::new),
 			to_address: self.to_address.unwrap_or_else(Vec::new),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_json;
+	use util::Address;
+	use v1::types::{BlockNumber, TraceFilter};
+
+	#[test]
+	fn test_empty_trace_filter_deserialize() {
+		let s = r#"{}"#;
+		let deserialized: TraceFilter = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized, TraceFilter {
+			from_block: None,
+			to_block: None,
+			from_address: None,
+			to_address: None
+		});
+	}
+
+	#[test]
+	fn test_trace_filter_deserialize() {
+		let s = r#"{
+			"fromBlock": "latest",
+			"toBlock": "latest",
+			"fromAddress": ["0x0000000000000000000000000000000000000003"],
+			"toAddress": ["0x0000000000000000000000000000000000000005"]
+		}"#;
+		let deserialized: TraceFilter = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized, TraceFilter {
+			from_block: Some(BlockNumber::Latest),
+			to_block: Some(BlockNumber::Latest),
+			from_address: Some(vec![Address::from(3)]),
+			to_address: Some(vec![Address::from(5)]),
+		});
 	}
 }
