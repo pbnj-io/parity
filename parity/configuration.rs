@@ -26,7 +26,7 @@ use die::*;
 use util::*;
 use util::keys::store::AccountService;
 use util::network_settings::NetworkSettings;
-use ethcore::client::{append_path, get_db_path, ClientConfig};
+use ethcore::client::{append_path, get_db_path, ClientConfig, Switch};
 use ethcore::ethereum;
 use ethcore::spec::Spec;
 use ethsync::SyncConfig;
@@ -194,9 +194,9 @@ impl Configuration {
 			}
 		}
 		client_config.tracing.enabled = match self.args.flag_tracing.as_str() {
-			"auto" => None,
-			"on" => Some(true),
-			"off" => Some(false),
+			"auto" => Switch::Auto,
+			"on" => Switch::On,
+			"off" => Switch::Off,
 			_ => { die!("Invalid tracing method given!") }
 		};
 		client_config.pruning = match self.args.flag_pruning.as_str() {

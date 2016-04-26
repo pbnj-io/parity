@@ -23,7 +23,7 @@ mod test_client;
 mod trace;
 
 pub use self::client::*;
-pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig};
+pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch};
 pub use self::ids::{BlockId, TransactionId, UncleId, TraceId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::trace::Filter as TraceFilter;
