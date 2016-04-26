@@ -726,8 +726,8 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		if start.is_some() && end.is_some() {
 			let filter = trace::Filter {
 				range: start.unwrap() as usize..end.unwrap() as usize,
-				from_address: filter.from_address,
-				to_address: filter.to_address,
+				from_address: From::from(filter.from_address),
+				to_address: From::from(filter.to_address),
 			};
 
 			let traces = self.tracedb.filter(&filter);
