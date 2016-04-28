@@ -42,7 +42,7 @@ use env_info::EnvInfo;
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use receipt::LocalizedReceipt;
 pub use blockchain::CacheSize as BlockChainCacheSize;
-use trace::{Tracedb, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase, Filter as
+use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase, Filter as
 	TracedbFilter};
 use trace;
 
@@ -106,7 +106,7 @@ impl ClientReport {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client<V = CanonVerifier> where V: Verifier {
 	chain: Arc<BlockChain>,
-	tracedb: Arc<Tracedb<BlockChain>>,
+	tracedb: Arc<TraceDB<BlockChain>>,
 	engine: Arc<Box<Engine>>,
 	state_db: Mutex<Box<JournalDB>>,
 	block_queue: BlockQueue,
@@ -154,7 +154,7 @@ impl<V> Client<V> where V: Verifier {
 		let path = get_db_path(path, config.pruning, spec.genesis_header().hash());
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain, &gb, &path));
-		let tracedb = Arc::new(Tracedb::new(config.tracing, &path, chain.clone()));
+		let tracedb = Arc::new(TraceDB::new(config.tracing, &path, chain.clone()));
 
 		let mut state_db = journaldb::new(&append_path(&path, "state"), config.pruning);
 
