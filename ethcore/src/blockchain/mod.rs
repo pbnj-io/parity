@@ -16,15 +16,17 @@
 
 //! Blockchain database.
 
-pub mod blockchain;
 mod best_block;
 mod block_info;
+pub mod blockchain;
 mod bloom_indexer;
 mod cache;
 mod config;
+pub mod extras;
+mod import_route;
 mod tree_route;
 mod update;
-mod import_route;
+
 #[cfg(test)]
 mod generator;
 

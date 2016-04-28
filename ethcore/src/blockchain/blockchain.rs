@@ -19,7 +19,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
 use header::*;
-use extras::*;
+use super::extras::*;
 use transaction::*;
 use views::*;
 use receipt::Receipt;

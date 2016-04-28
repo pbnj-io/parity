@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use util::numbers::H256;
 use header::BlockNumber;
 use blockchain::block_info::BlockInfo;
-use extras::{BlockDetails, BlockReceipts, TransactionAddress, BlocksBlooms};
+use super::extras::{BlockDetails, BlockReceipts, TransactionAddress, BlocksBlooms};
 
 /// Block extras update info.
 pub struct ExtrasUpdate {
