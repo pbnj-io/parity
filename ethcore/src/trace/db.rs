@@ -53,6 +53,17 @@ impl Key<BlockTraces> for H256 {
 	}
 }
 
+/// Wrapper around blooms::GroupPosition so it could be
+/// uniquely identified in the database.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+struct TraceGroupPosition(blooms::GroupPosition);
+
+impl From<GroupPosition> for TraceGroupPosition {
+	fn from(position: GroupPosition) -> Self {
+		TraceGroupPosition(From::from(position))
+	}
+}
+
 /// Helper data structure created cause [u8; 6] does not implement Deref to &[u8].
 pub struct TraceGroupKey([u8; 6]);
 
@@ -64,15 +75,15 @@ impl Deref for TraceGroupKey {
 	}
 }
 
-impl Key<blooms::BloomGroup> for blooms::GroupPosition {
+impl Key<blooms::BloomGroup> for TraceGroupPosition {
 	type Target = TraceGroupKey;
 
 	fn key(&self) -> Self::Target {
 		let mut result = [0u8; 6];
 		result[0] = TracedbIndex::BloomGroups as u8;
-		result[1] = self.level;
+		result[1] = self.0.level;
 		unsafe {
-			ptr::copy(&[self.index] as *const u32 as *const u8, result.as_mut_ptr().offset(2), 4);
+			ptr::copy(&[self.0.index] as *const u32 as *const u8, result.as_mut_ptr().offset(2), 4);
 		}
 		TraceGroupKey(result)
 	}
@@ -82,7 +93,7 @@ impl Key<blooms::BloomGroup> for blooms::GroupPosition {
 pub struct Tracedb<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, BlockTraces>>,
-	blooms: RwLock<HashMap<blooms::GroupPosition, blooms::BloomGroup>>,
+	blooms: RwLock<HashMap<TraceGroupPosition, blooms::BloomGroup>>,
 	// db
 	tracesdb: Database,
 	// config,
@@ -93,7 +104,7 @@ pub struct Tracedb<T> where T: DatabaseExtras {
 
 impl<T> BloomGroupDatabase for Tracedb<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
-		let position = blooms::GroupPosition::from(position.clone());
+		let position = TraceGroupPosition::from(position.clone());
 		self.tracesdb.read_with_cache(&self.blooms, &position).map(Into::into)
 	}
 }
@@ -239,7 +250,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
 			let blooms_to_insert = trace_blooms.into_iter()
 				.map(|p| (From::from(p.0), From::from(p.1)))
-				.collect::<HashMap<blooms::GroupPosition, blooms::BloomGroup>>();
+				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
 
 			let mut blooms = self.blooms.write().unwrap();
 			batch.extend_with_cache(&mut blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
