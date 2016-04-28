@@ -121,7 +121,6 @@ mod account_db;
 mod action_params;
 mod null_engine;
 mod builtin;
-mod chainfilter;
 mod substate;
 mod executive;
 mod externalities;

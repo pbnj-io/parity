@@ -19,7 +19,6 @@
 mod best_block;
 mod block_info;
 pub mod blockchain;
-mod bloom_indexer;
 mod cache;
 mod config;
 pub mod extras;

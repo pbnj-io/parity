@@ -17,23 +17,20 @@
 //! Blockchain database.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
+use bloomchain as bc;
 use util::*;
 use header::*;
 use super::extras::*;
 use transaction::*;
 use views::*;
 use receipt::Receipt;
-use chainfilter::{ChainFilter, BloomIndex, FilterDataSource};
+use blooms::{Bloom, BloomGroup};
 use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
 use blockchain::best_block::BestBlock;
-use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{Writable, Readable, Key, CacheUpdatePolicy};
-
-const BLOOM_INDEX_SIZE: usize = 16;
-const BLOOM_LEVELS: u8 = 3;
 
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
@@ -119,6 +116,14 @@ struct CacheManager {
 	in_use: HashSet<CacheID>,
 }
 
+impl bc::group::BloomGroupDatabase for BlockChain {
+	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
+
+		let position = LogGroupPosition::from(position.clone());
+		self.extras_db.read_with_cache(&self.blocks_blooms, &position).map(Into::into)
+	}
+}
+
 /// Structure providing fast access to blockchain data.
 ///
 /// **Does not do input data verification.**
@@ -126,6 +131,7 @@ pub struct BlockChain {
 	// All locks must be captured in the order declared here.
 	pref_cache_size: AtomicUsize,
 	max_cache_size: AtomicUsize,
+	blooms_config: bc::Config,
 
 	best_block: RwLock<BestBlock>,
 
@@ -137,7 +143,7 @@ pub struct BlockChain {
 	block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
 	block_logs: RwLock<HashMap<H256, BlockLogBlooms>>,
-	blocks_blooms: RwLock<HashMap<H256, BlocksBlooms>>,
+	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
 	extras_db: Database,
@@ -145,17 +151,7 @@ pub struct BlockChain {
 
 	cache_man: RwLock<CacheManager>,
 
-	// blooms indexing
-	bloom_indexer: BloomIndexer,
-
 	insert_lock: Mutex<()>
-}
-
-impl FilterDataSource for BlockChain {
-	fn bloom_at_index(&self, bloom_index: &BloomIndex) -> Option<H2048> {
-		let location = self.bloom_indexer.location(bloom_index);
-		self.blocks_blooms(&location.hash).and_then(|blooms| blooms.blooms.into_iter().nth(location.index).cloned())
-	}
 }
 
 impl BlockProvider for BlockChain {
@@ -212,8 +208,12 @@ impl BlockProvider for BlockChain {
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber> {
-		let filter = ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels());
-		filter.blocks_with_bloom(bloom, from_block as usize, to_block as usize).into_iter().map(|b| b as BlockNumber).collect()
+		let range = from_block as bc::Number..to_block as bc::Number;
+		let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
+		chain.with_bloom(&range, &Bloom::from(bloom.clone()).into())
+			.into_iter()
+			.map(|b| b as BlockNumber)
+			.collect()
 	}
 }
 
@@ -256,6 +256,7 @@ impl BlockChain {
 		let bc = BlockChain {
 			pref_cache_size: AtomicUsize::new(config.pref_cache_size),
 			max_cache_size: AtomicUsize::new(config.max_cache_size),
+			blooms_config: config.log_blooms,
 			best_block: RwLock::new(BestBlock::default()),
 			blocks: RwLock::new(HashMap::new()),
 			block_details: RwLock::new(HashMap::new()),
@@ -267,7 +268,6 @@ impl BlockChain {
 			extras_db: extras_db,
 			blocks_db: blocks_db,
 			cache_man: RwLock::new(cache_man),
-			bloom_indexer: BloomIndexer::new(BLOOM_INDEX_SIZE, BLOOM_LEVELS),
 			insert_lock: Mutex::new(()),
 		};
 
@@ -650,44 +650,38 @@ impl BlockChain {
 	/// Later, BloomIndexer is used to map bloom location on filter layer (BloomIndex)
 	/// to bloom location in database (BlocksBloomLocation).
 	///
-	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, BlocksBlooms> {
+	fn prepare_block_blooms_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<LogGroupPosition, BloomGroup> {
 		let block = BlockView::new(block_bytes);
 		let header = block.header_view();
 
-		let modified_blooms = match info.location {
+		let log_blooms = match info.location {
 			BlockLocation::Branch => HashMap::new(),
 			BlockLocation::CanonChain => {
-				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
-					.add_bloom(&header.log_bloom(), header.number() as usize)
+				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
+				chain.insert(info.number as bc::Number, Bloom::from(header.log_bloom()).into())
 			},
 			BlockLocation::BranchBecomingCanonChain(ref data) => {
 				let ancestor_number = self.block_number(&data.ancestor).unwrap();
 				let start_number = ancestor_number + 1;
+				let range = start_number as bc::Number..self.best_block_number() as bc::Number;
 
-				let mut blooms: Vec<H2048> = data.enacted.iter()
+				let mut blooms: Vec<bc::Bloom> = data.enacted.iter()
 					.map(|hash| self.block(hash).unwrap())
 					.map(|bytes| BlockView::new(&bytes).header_view().log_bloom())
+					.map(Bloom::from)
+					.map(Into::into)
 					.collect();
 
-				blooms.push(header.log_bloom());
+				blooms.push(Bloom::from(header.log_bloom()).into());
 
-				ChainFilter::new(self, self.bloom_indexer.index_size(), self.bloom_indexer.levels())
-					.reset_chain_head(&blooms, start_number as usize, self.best_block_number() as usize)
+				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
+				chain.replace(&range, blooms)
 			}
 		};
 
-		modified_blooms.into_iter()
-			.fold(HashMap::new(), | mut acc, (bloom_index, bloom) | {
-			{
-				let location = self.bloom_indexer.location(&bloom_index);
-				let mut blocks_blooms = acc
-					.entry(location.hash.clone())
-					.or_insert_with(|| self.blocks_blooms(&location.hash).unwrap_or_else(BlocksBlooms::new));
-				assert_eq!(self.bloom_indexer.index_size(), blocks_blooms.blooms.len());
-				blocks_blooms.blooms[location.index] = bloom;
-			}
-			acc
-		})
+		log_blooms.into_iter()
+			.map(|p| (From::from(p.0), From::from(p.1)))
+			.collect()
 	}
 
 	/// Get best block hash.
@@ -703,11 +697,6 @@ impl BlockChain {
 	/// Get best block total difficulty.
 	pub fn best_block_total_difficulty(&self) -> U256 {
 		self.best_block.read().unwrap().total_difficulty
-	}
-
-	/// Get block blooms.
-	fn blocks_blooms(&self, hash: &H256) -> Option<BlocksBlooms> {
-		self.query_extras(hash, &self.blocks_blooms)
 	}
 
 	fn query_extras<K, T, R>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
@@ -726,7 +715,10 @@ impl BlockChain {
 			block_details: self.block_details.read().unwrap().heap_size_of_children(),
 			transaction_addresses: self.transaction_addresses.read().unwrap().heap_size_of_children(),
 			block_logs: self.block_logs.read().unwrap().heap_size_of_children(),
-			blocks_blooms: self.blocks_blooms.read().unwrap().heap_size_of_children(),
+			blocks_blooms: {
+				unimplemented!();
+				//self.blocks_blooms.read().unwrap().heap_size_of_children()
+			},
 			block_receipts: self.block_receipts.read().unwrap().heap_size_of_children()
 		}
 	}
@@ -768,7 +760,10 @@ impl BlockChain {
 						CacheID::Extras(ExtrasIndex::BlockDetails, h) => { block_details.remove(&h); },
 						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => { blocks_blooms.remove(&h); },
+						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => {
+							unimplemented!();
+							//blocks_blooms.remove(&h);
+						},
 						CacheID::Extras(ExtrasIndex::BlockReceipts, h) => { block_receipts.remove(&h); },
 						// TODO: debris, temporary fix
 						CacheID::Extras(ExtrasIndex::BlockHash, _) => { },
