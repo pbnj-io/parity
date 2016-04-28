@@ -14,22 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blockchain database.
+//! Blockchain configuration.
 
-pub mod blockchain;
-mod best_block;
-mod block_info;
-mod bloom_indexer;
-mod cache;
-mod config;
-mod tree_route;
-mod update;
-mod import_route;
-#[cfg(test)]
-mod generator;
+/// Blockchain configuration.
+#[derive(Debug)]
+pub struct Config {
+	/// Preferred cache size in bytes.
+	pub pref_cache_size: usize,
+	/// Maximum cache size in bytes.
+	pub max_cache_size: usize,
+}
 
-pub use self::blockchain::{BlockProvider, BlockChain};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use self::tree_route::TreeRoute;
-pub use self::import_route::ImportRoute;
+impl Default for Config {
+	fn default() -> Self {
+		Config {
+			pref_cache_size: 1 << 14,
+			max_cache_size: 1 << 20,
+		}
+	}
+}
+

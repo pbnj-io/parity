@@ -29,29 +29,11 @@ use blockchain::best_block::BestBlock;
 use blockchain::bloom_indexer::BloomIndexer;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
-use blockchain::{CacheSize, ImportRoute};
+use blockchain::{CacheSize, ImportRoute, Config};
 use db::{Writable, Readable, Key, CacheUpdatePolicy};
 
 const BLOOM_INDEX_SIZE: usize = 16;
 const BLOOM_LEVELS: u8 = 3;
-
-/// Blockchain configuration.
-#[derive(Debug)]
-pub struct BlockChainConfig {
-	/// Preferred cache size in bytes.
-	pub pref_cache_size: usize,
-	/// Maximum cache size in bytes.
-	pub max_cache_size: usize,
-}
-
-impl Default for BlockChainConfig {
-	fn default() -> Self {
-		BlockChainConfig {
-			pref_cache_size: 1 << 14,
-			max_cache_size: 1 << 20,
-		}
-	}
-}
 
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
@@ -257,7 +239,7 @@ impl<'a> Iterator for AncestryIter<'a> {
 
 impl BlockChain {
 	/// Create new instance of blockchain from given Genesis
-	pub fn new(config: BlockChainConfig, genesis: &[u8], path: &Path) -> BlockChain {
+	pub fn new(config: Config, genesis: &[u8], path: &Path) -> BlockChain {
 		// open extras db
 		let mut extras_path = path.to_path_buf();
 		extras_path.push("extras");
@@ -819,7 +801,7 @@ mod tests {
 	use rustc_serialize::hex::FromHex;
 	use util::hash::*;
 	use util::sha3::Hashable;
-	use blockchain::{BlockProvider, BlockChain, BlockChainConfig, ImportRoute};
+	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
 	use tests::helpers::*;
 	use devtools::*;
 	use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
@@ -835,7 +817,7 @@ mod tests {
 		let first_hash = BlockView::new(&first).header_view().sha3();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
 		assert_eq!(bc.best_block_number(), 0);
@@ -863,7 +845,7 @@ mod tests {
 		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
 		for _ in 0..10 {
@@ -895,7 +877,7 @@ mod tests {
 		let b5a = canon_chain.generate(&mut finalizer).unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 		bc.insert_block(&b1a, vec![]);
 		bc.insert_block(&b1b, vec![]);
 		bc.insert_block(&b2a, vec![]);
@@ -936,7 +918,7 @@ mod tests {
 		let best_block_hash = b3a_hash.clone();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 		let ir1 = bc.insert_block(&b1, vec![]);
 		let ir2 = bc.insert_block(&b2, vec![]);
 		let ir3b = bc.insert_block(&b3b, vec![]);
@@ -1041,14 +1023,14 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		{
-			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			bc.insert_block(&first, vec![]);
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
 
 		{
-			let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+			let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
 	}
@@ -1101,7 +1083,7 @@ mod tests {
 		let b1_hash = H256::from_str("f53f268d23a71e85c7d6d83a9504298712b84c1a2ba220441c86eeda0bf0b6e3").unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 		bc.insert_block(&b1, vec![]);
 
 		let transactions = bc.transactions(&b1_hash).unwrap();
@@ -1132,7 +1114,7 @@ mod tests {
 		let b2a = canon_chain.with_bloom(bloom_ba.clone()).generate(&mut finalizer).unwrap();
 
 		let temp = RandomTempPath::new();
-		let bc = BlockChain::new(BlockChainConfig::default(), &genesis, temp.as_path());
+		let bc = BlockChain::new(Config::default(), &genesis, temp.as_path());
 
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
