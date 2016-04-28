@@ -17,7 +17,6 @@
 //! Tracing
 
 mod block;
-mod bloom;
 mod config;
 mod db;
 mod executive_tracer;

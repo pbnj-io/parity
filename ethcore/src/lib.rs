@@ -105,6 +105,7 @@ pub mod views;
 pub mod receipt;
 pub mod pod_state;
 
+mod blooms;
 mod db;
 mod common;
 mod basic_types;

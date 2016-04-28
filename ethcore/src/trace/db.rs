@@ -27,7 +27,7 @@ use header::BlockNumber;
 use trace::{BlockTraces, LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest,
 DatabaseExtras};
 use db::{Key, Writable, Readable, CacheUpdatePolicy};
-use super::bloom::{TraceGroupPosition, BlockTracesBloom, BlockTracesBloomGroup};
+use blooms;
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 
 const TRACE_DB_VER: &'static [u8] = b"1.0";
@@ -37,7 +37,7 @@ pub enum TracedbIndex {
 	/// Block traces index.
 	BlockTraces = 0,
 	/// Trace bloom group index.
-	BlockTracesBloomGroups = 1,
+	BloomGroups = 1,
 }
 
 impl Key<BlockTraces> for H256 {
@@ -64,12 +64,12 @@ impl Deref for TraceGroupKey {
 	}
 }
 
-impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
+impl Key<blooms::BloomGroup> for blooms::GroupPosition {
 	type Target = TraceGroupKey;
 
 	fn key(&self) -> Self::Target {
 		let mut result = [0u8; 6];
-		result[0] = TracedbIndex::BlockTracesBloomGroups as u8;
+		result[0] = TracedbIndex::BloomGroups as u8;
 		result[1] = self.level;
 		unsafe {
 			ptr::copy(&[self.index] as *const u32 as *const u8, result.as_mut_ptr().offset(2), 4);
@@ -82,7 +82,7 @@ impl Key<BlockTracesBloomGroup> for TraceGroupPosition {
 pub struct Tracedb<T> where T: DatabaseExtras {
 	// cache
 	traces: RwLock<HashMap<H256, BlockTraces>>,
-	blooms: RwLock<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>,
+	blooms: RwLock<HashMap<blooms::GroupPosition, blooms::BloomGroup>>,
 	// db
 	tracesdb: Database,
 	// config,
@@ -93,7 +93,7 @@ pub struct Tracedb<T> where T: DatabaseExtras {
 
 impl<T> BloomGroupDatabase for Tracedb<T> where T: DatabaseExtras {
 	fn blooms_at(&self, position: &GroupPosition) -> Option<BloomGroup> {
-		let position = TraceGroupPosition::from(position.clone());
+		let position = blooms::GroupPosition::from(position.clone());
 		self.tracesdb.read_with_cache(&self.blooms, &position).map(Into::into)
 	}
 }
@@ -231,7 +231,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 				// traces database is corrupted or incomplete.
 				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
 				.map(|block_traces| block_traces.bloom())
-				.map(BlockTracesBloom::from)
+				.map(blooms::Bloom::from)
 				.map(Into::into)
 				.collect();
 
@@ -239,7 +239,7 @@ impl<T> TraceDatabase for Tracedb<T> where T: DatabaseExtras {
 			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
 			let blooms_to_insert = trace_blooms.into_iter()
 				.map(|p| (From::from(p.0), From::from(p.1)))
-				.collect::<HashMap<TraceGroupPosition, BlockTracesBloomGroup>>();
+				.collect::<HashMap<blooms::GroupPosition, blooms::BloomGroup>>();
 
 			let mut blooms = self.blooms.write().unwrap();
 			batch.extend_with_cache(&mut blooms, blooms_to_insert, CacheUpdatePolicy::Remove);

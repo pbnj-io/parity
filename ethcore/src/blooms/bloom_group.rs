@@ -14,45 +14,55 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use bloomchain::group as bc;
 use util::rlp::*;
-use basic_types::LogBloom;
-use super::Trace;
+use super::Bloom;
 
-/// Traces created by transactions from the same block.
+/// Represents group of X consecutive blooms.
 #[derive(Clone)]
-pub struct BlockTraces(Vec<Trace>);
+pub struct BloomGroup {
+	blooms: Vec<Bloom>,
+}
 
-impl From<Vec<Trace>> for BlockTraces {
-	fn from(traces: Vec<Trace>) -> Self {
-		BlockTraces(traces)
+impl From<bc::BloomGroup> for BloomGroup {
+	fn from(group: bc::BloomGroup) -> Self {
+		let blooms = group.blooms
+			.into_iter()
+			.map(From::from)
+			.collect();
+
+		BloomGroup {
+			blooms: blooms
+		}
 	}
 }
 
-impl Into<Vec<Trace>> for BlockTraces {
-	fn into(self) -> Vec<Trace> {
-		self.0
+impl Into<bc::BloomGroup> for BloomGroup {
+	fn into(self) -> bc::BloomGroup {
+		let blooms = self.blooms
+			.into_iter()
+			.map(Into::into)
+			.collect();
+
+		bc::BloomGroup {
+			blooms: blooms
+		}
 	}
 }
 
-impl Decodable for BlockTraces {
+impl Decodable for BloomGroup {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let traces = try!(Decodable::decode(decoder));
-		let block_traces = BlockTraces(traces);
-		Ok(block_traces)
+		let blooms = try!(Decodable::decode(decoder));
+		let group = BloomGroup {
+			blooms: blooms
+		};
+		Ok(group)
 	}
 }
 
-impl Encodable for BlockTraces {
+impl Encodable for BloomGroup {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.0, s)
-	}
-}
-
-impl BlockTraces {
-	/// Returns bloom of all traces in given block.
-	pub fn bloom(&self) -> LogBloom {
-		self.0.iter()
-			.fold(LogBloom::default(), |acc, trace| acc | trace.bloom())
+		Encodable::rlp_append(&self.blooms, s)
 	}
 }
 
