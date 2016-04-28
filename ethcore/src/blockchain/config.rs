@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Blockchain configuration.
+use bloomchain::Config as BloomConfig;
 
 /// Blockchain configuration.
 #[derive(Debug)]
@@ -23,6 +24,8 @@ pub struct Config {
 	pub pref_cache_size: usize,
 	/// Maximum cache size in bytes.
 	pub max_cache_size: usize,
+	/// Log blooms configuration.
+	pub log_blooms: BloomConfig,
 }
 
 impl Default for Config {
@@ -30,6 +33,10 @@ impl Default for Config {
 		Config {
 			pref_cache_size: 1 << 14,
 			max_cache_size: 1 << 20,
+			log_blooms: BloomConfig {
+				levels: 3,
+				elements_per_index: 16,
+			}
 		}
 	}
 }
