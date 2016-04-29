@@ -758,6 +758,10 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 		self.block_number(block)
 			.and_then(|number| self.tracedb.block_traces(number))
 	}
+
+	fn last_hashes(&self) -> LastHashes {
+		self.build_last_hashes(self.chain.best_block_hash())
+	}
 }
 
 impl MayPanic for Client {

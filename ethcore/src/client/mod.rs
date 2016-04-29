@@ -27,7 +27,8 @@ pub use self::config::{ClientConfig, BlockQueueConfig, BlockChainConfig, Switch}
 pub use self::ids::{BlockId, TransactionId, UncleId, TraceId};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::trace::Filter as TraceFilter;
-pub use executive::Executed;
+pub use executive::{Executed, Executive, TransactOptions};
+pub use env_info::{LastHashes, EnvInfo};
 
 use std::collections::HashSet;
 use util::bytes::Bytes;
@@ -147,5 +148,8 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Returns traces created by transaction from block.
 	fn block_traces(&self, trace: BlockId) -> Option<Vec<LocalizedTrace>>;
+
+	/// Get last hashes starting from best block.
+	fn last_hashes(&self) -> LastHashes;
 }
 
