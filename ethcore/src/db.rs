@@ -20,7 +20,6 @@ use std::ops::Deref;
 use std::hash::Hash;
 use std::sync::RwLock;
 use std::collections::HashMap;
-use linked_hash_map::LinkedHashMap;
 use util::{DBTransaction, Database};
 use util::rlp::{encode, Encodable, decode, Decodable};
 
@@ -49,21 +48,6 @@ impl<K, V> Cache<K, V> for HashMap<K, V> where K: Hash + Eq {
 
 	fn get(&self, k: &K) -> Option<&V> {
 		HashMap::get(self, k)
-	}
-}
-
-impl<K, V> Cache<K, V> for LinkedHashMap<K, V> where K: Hash + Eq {
-	fn insert(&mut self, k: K, v: V) -> Option<V> {
-		LinkedHashMap::insert(self, k, v)
-	}
-
-	fn remove(&mut self, k: &K) -> Option<V> {
-		LinkedHashMap::remove(self, k)
-	}
-
-	fn get(&self, k: &K) -> Option<&V> {
-		// consider using `get_refresh` instead.
-		LinkedHashMap::get(self, k)
 	}
 }
 

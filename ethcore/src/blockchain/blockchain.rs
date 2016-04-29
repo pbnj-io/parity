@@ -18,7 +18,6 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use bloomchain as bc;
-use linked_hash_map::LinkedHashMap;
 use util::*;
 use header::*;
 use super::extras::*;
@@ -143,7 +142,6 @@ pub struct BlockChain {
 	block_details: RwLock<HashMap<H256, BlockDetails>>,
 	block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
-	block_logs: RwLock<HashMap<H256, BlockLogBlooms>>,
 	blocks_blooms: RwLock<HashMap<LogGroupPosition, BloomGroup>>,
 	block_receipts: RwLock<HashMap<H256, BlockReceipts>>,
 
@@ -263,7 +261,6 @@ impl BlockChain {
 			block_details: RwLock::new(HashMap::new()),
 			block_hashes: RwLock::new(HashMap::new()),
 			transaction_addresses: RwLock::new(HashMap::new()),
-			block_logs: RwLock::new(HashMap::new()),
 			blocks_blooms: RwLock::new(HashMap::new()),
 			block_receipts: RwLock::new(HashMap::new()),
 			extras_db: extras_db,
@@ -715,7 +712,6 @@ impl BlockChain {
 			blocks: self.blocks.read().unwrap().heap_size_of_children(),
 			block_details: self.block_details.read().unwrap().heap_size_of_children(),
 			transaction_addresses: self.transaction_addresses.read().unwrap().heap_size_of_children(),
-			block_logs: self.block_logs.read().unwrap().heap_size_of_children(),
 			blocks_blooms: {
 				unimplemented!();
 				//self.blocks_blooms.read().unwrap().heap_size_of_children()
@@ -749,7 +745,6 @@ impl BlockChain {
 				let mut block_details = self.block_details.write().unwrap();
 				let mut block_hashes = self.block_hashes.write().unwrap();
 				let mut transaction_addresses = self.transaction_addresses.write().unwrap();
-				let mut block_logs = self.block_logs.write().unwrap();
 				let mut blocks_blooms = self.blocks_blooms.write().unwrap();
 				let mut block_receipts = self.block_receipts.write().unwrap();
 				let mut cache_man = self.cache_man.write().unwrap();
@@ -760,7 +755,6 @@ impl BlockChain {
 						CacheID::Block(h) => { blocks.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlockDetails, h) => { block_details.remove(&h); },
 						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlockLogBlooms, h) => { block_logs.remove(&h); },
 						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => {
 							unimplemented!();
 							//blocks_blooms.remove(&h);
@@ -779,7 +773,6 @@ impl BlockChain {
 				block_details.shrink_to_fit();
  				block_hashes.shrink_to_fit();
  				transaction_addresses.shrink_to_fit();
- 				block_logs.shrink_to_fit();
  				blocks_blooms.shrink_to_fit();
  				block_receipts.shrink_to_fit();
 			}

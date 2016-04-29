@@ -23,7 +23,6 @@ lazy_static = "0.1"
 ethcore-devtools = { path = "../devtools" }
 ethjson = { path = "../json" }
 bloomchain = "0.1"
-linked-hash-map = "0.0.10"
 
 [features]
 jit = ["evmjit"]

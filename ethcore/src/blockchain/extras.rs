@@ -32,12 +32,10 @@ pub enum ExtrasIndex {
 	BlockHash = 1,
 	/// Transaction address index
 	TransactionAddress = 2,
-	/// Block log blooms index
-	BlockLogBlooms = 3,
 	/// Block blooms index
-	BlocksBlooms = 4,
+	BlocksBlooms = 3,
 	/// Block receipts index
-	BlockReceipts = 5,
+	BlockReceipts = 4,
 }
 
 fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
@@ -68,12 +66,6 @@ impl ExtrasIndexable for BlockDetails {
 impl ExtrasIndexable for TransactionAddress {
 	fn index() -> ExtrasIndex {
 		ExtrasIndex::TransactionAddress
-	}
-}
-
-impl ExtrasIndexable for BlockLogBlooms {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlockLogBlooms
 	}
 }
 
@@ -119,14 +111,6 @@ impl Key<TransactionAddress> for H256 {
 
 	fn key(&self) -> H264 {
 		with_index(self, ExtrasIndex::TransactionAddress)
-	}
-}
-
-impl Key<BlockLogBlooms> for H256 {
-	type Target = H264;
-
-	fn key(&self) -> H264 {
-		with_index(self, ExtrasIndex::BlockLogBlooms)
 	}
 }
 
@@ -210,35 +194,6 @@ impl Encodable for BlockDetails {
 		s.append(&self.total_difficulty);
 		s.append(&self.parent);
 		s.append(&self.children);
-	}
-}
-
-/// Log blooms of certain block
-#[derive(Clone)]
-pub struct BlockLogBlooms {
-	/// List of log blooms for the block
-	pub blooms: Vec<H2048>
-}
-
-impl HeapSizeOf for BlockLogBlooms {
-	fn heap_size_of_children(&self) -> usize {
-		self.blooms.heap_size_of_children()
-	}
-}
-
-impl Decodable for BlockLogBlooms {
-	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		let block_blooms = BlockLogBlooms {
-			blooms: try!(Decodable::decode(decoder))
-		};
-
-		Ok(block_blooms)
-	}
-}
-
-impl Encodable for BlockLogBlooms {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.blooms);
 	}
 }
 
