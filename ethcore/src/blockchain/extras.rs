@@ -83,11 +83,26 @@ impl ExtrasIndexable for BlockReceipts {
 	}
 }
 
-impl Key<H256> for BlockNumber {
-	type Target = H264;
+pub struct BlockNumberKey([u8; 5]);
 
-	fn key(&self) -> H264 {
-		with_index(&H256::from(*self), ExtrasIndex::BlockHash)
+impl Deref for BlockNumberKey {
+	type Target = [u8];
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl Key<H256> for BlockNumber {
+	type Target = BlockNumberKey;
+
+	fn key(&self) -> Self::Target {
+		let mut result = [0u8; 5];
+		result[0] = ExtrasIndex::BlockHash as u8;
+		unsafe {
+			ptr::copy(&[*self as u32] as *const u32 as *const u8, result.as_mut_ptr().offset(1), 4);
+		}
+		BlockNumberKey(result)
 	}
 }
 
