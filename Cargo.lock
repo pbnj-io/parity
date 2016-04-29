@@ -261,6 +261,7 @@ dependencies = [
  "ethjson 0.1.0",
  "heapsize 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "linked-hash-map 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-crypto 0.2.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -621,6 +622,11 @@ source = "git+https://github.com/arkpar/rust-rocksdb.git#ae44ef33ed1358ffc79aa05
 dependencies = [
  "libc 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "linked-hash-map"
+version = "0.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "log"

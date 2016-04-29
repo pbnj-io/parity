@@ -16,7 +16,7 @@
 
 //! Trace database.
 use std::ptr;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::collections::HashMap;
 use std::sync::{RwLock, Arc};
 use std::path::Path;
@@ -226,7 +226,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let mut traces = self.traces.write().unwrap();
 			// it's important to use overwrite here,
 			// cause this value might be queried by hash later
-			batch.write_with_cache(&mut traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+			batch.write_with_cache(traces.deref_mut(), request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
 		}
 
 		// now let's rebuild the blooms
@@ -252,7 +252,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				.collect::<HashMap<TraceGroupPosition, blooms::BloomGroup>>();
 
 			let mut blooms = self.blooms.write().unwrap();
-			batch.extend_with_cache(&mut blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(blooms.deref_mut(), blooms_to_insert, CacheUpdatePolicy::Remove);
 		}
 
 		self.tracesdb.write(batch).unwrap();

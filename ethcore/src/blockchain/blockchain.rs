@@ -18,6 +18,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use bloomchain as bc;
+use linked_hash_map::LinkedHashMap;
 use util::*;
 use header::*;
 use super::extras::*;
@@ -447,17 +448,17 @@ impl BlockChain {
 			}
 
 			let mut write_details = self.block_details.write().unwrap();
-			batch.extend_with_cache(&mut write_details, update.block_details, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_cache(write_details.deref_mut(), update.block_details, CacheUpdatePolicy::Overwrite);
 		}
 
 		{
 			let mut write_receipts = self.block_receipts.write().unwrap();
-			batch.extend_with_cache(&mut write_receipts, update.block_receipts, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(write_receipts.deref_mut(), update.block_receipts, CacheUpdatePolicy::Remove);
 		}
 
 		{
 			let mut write_blocks_blooms = self.blocks_blooms.write().unwrap();
-			batch.extend_with_cache(&mut write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(write_blocks_blooms.deref_mut(), update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
 		// These cached values must be updated last and togeterh
@@ -478,8 +479,8 @@ impl BlockChain {
 				}
 			}
 
-			batch.extend_with_cache(&mut write_hashes, update.block_hashes, CacheUpdatePolicy::Remove);
-			batch.extend_with_cache(&mut write_txs, update.transactions_addresses, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(write_hashes.deref_mut(), update.block_hashes, CacheUpdatePolicy::Remove);
+			batch.extend_with_cache(write_txs.deref_mut(), update.transactions_addresses, CacheUpdatePolicy::Remove);
 
 			// update extras database
 			self.extras_db.write(batch).unwrap();
