@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain::group as bc;
+use util::HeapSizeOf;
 
 /// Represents BloomGroup position in database.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]
@@ -31,5 +32,11 @@ impl From<bc::GroupPosition> for GroupPosition {
 			level: p.level as u8,
 			index: p.index as u32,
 		}
+	}
+}
+
+impl HeapSizeOf for GroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		0
 	}
 }

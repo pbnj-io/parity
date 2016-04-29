@@ -16,6 +16,7 @@
 
 use bloomchain as bc;
 use util::rlp::*;
+use util::HeapSizeOf;
 use basic_types::LogBloom;
 
 /// Helper structure representing bloom of the trace.
@@ -51,5 +52,11 @@ impl Decodable for Bloom {
 impl Encodable for Bloom {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		Encodable::rlp_append(&self.0, s)
+	}
+}
+
+impl HeapSizeOf for Bloom {
+	fn heap_size_of_children(&self) -> usize {
+		0
 	}
 }

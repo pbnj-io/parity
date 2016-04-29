@@ -16,6 +16,7 @@
 
 use bloomchain::group as bc;
 use util::rlp::*;
+use util::HeapSizeOf;
 use super::Bloom;
 
 /// Represents group of X consecutive blooms.
@@ -66,3 +67,8 @@ impl Encodable for BloomGroup {
 	}
 }
 
+impl HeapSizeOf for BloomGroup {
+	fn heap_size_of_children(&self) -> usize {
+		self.blooms.heap_size_of_children()
+	}
+}

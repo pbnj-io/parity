@@ -30,7 +30,7 @@ use blockchain::best_block::BestBlock;
 use blockchain::tree_route::TreeRoute;
 use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
-use db::{Writable, Readable, Key, CacheUpdatePolicy};
+use db::{Writable, Readable, CacheUpdatePolicy};
 
 /// Interface for querying blocks by hash and by number.
 pub trait BlockProvider {
@@ -108,7 +108,11 @@ pub trait BlockProvider {
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
 enum CacheID {
 	Block(H256),
-	Extras(ExtrasIndex, H256),
+	BlockDetails(H256),
+	BlockHashes(BlockNumber),
+	TransactionAddresses(H256),
+	BlocksBlooms(LogGroupPosition),
+	BlockReceipts(H256),
 }
 
 struct CacheManager {
@@ -120,6 +124,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 	fn blooms_at(&self, position: &bc::group::GroupPosition) -> Option<bc::group::BloomGroup> {
 
 		let position = LogGroupPosition::from(position.clone());
+		self.note_used(CacheID::BlocksBlooms(position.clone()));
 		self.extras_db.read_with_cache(&self.blocks_blooms, &position).map(Into::into)
 	}
 }
@@ -187,22 +192,26 @@ impl BlockProvider for BlockChain {
 
 	/// Get the familial details concerning a block.
 	fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
-		self.query_extras(hash, &self.block_details)
+		self.note_used(CacheID::BlockDetails(hash.clone()));
+		self.extras_db.read_with_cache(&self.block_details, hash)
 	}
 
 	/// Get the hash of given block's number.
 	fn block_hash(&self, index: BlockNumber) -> Option<H256> {
-		self.query_extras(&index, &self.block_hashes)
+		self.note_used(CacheID::BlockHashes(index));
+		self.extras_db.read_with_cache(&self.block_hashes, &index)
 	}
 
 	/// Get the address of transaction with given hash.
 	fn transaction_address(&self, hash: &H256) -> Option<TransactionAddress> {
-		self.query_extras(hash, &self.transaction_addresses)
+		self.note_used(CacheID::TransactionAddresses(hash.clone()));
+		self.extras_db.read_with_cache(&self.transaction_addresses, hash)
 	}
 
 	/// Get receipts of block with given hash.
 	fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
-		self.query_extras(hash, &self.block_receipts)
+		self.note_used(CacheID::BlockReceipts(hash.clone()));
+		self.extras_db.read_with_cache(&self.block_receipts, hash)
 	}
 
 	/// Returns numbers of blocks containing given bloom.
@@ -441,7 +450,7 @@ impl BlockChain {
 
 		{
 			for hash in update.block_details.keys().cloned() {
-				self.note_used(CacheID::Extras(ExtrasIndex::BlockDetails, hash));
+				self.note_used(CacheID::BlockDetails(hash));
 			}
 
 			let mut write_details = self.block_details.write().unwrap();
@@ -697,26 +706,14 @@ impl BlockChain {
 		self.best_block.read().unwrap().total_difficulty
 	}
 
-	fn query_extras<K, T, R>(&self, hash: &K, cache: &RwLock<HashMap<K, T>>) -> Option<T> where
-		T: ExtrasIndexable + Clone + Decodable,
-		K: Key<T, Target = R> + Eq + Hash + Clone,
-		R: Deref<Target = [u8]>,
-		H256: From<K> {
-		self.note_used(CacheID::Extras(T::index(), H256::from(hash.clone())));
-		self.extras_db.read_with_cache(cache, hash)
-	}
-
 	/// Get current cache size.
 	pub fn cache_size(&self) -> CacheSize {
 		CacheSize {
 			blocks: self.blocks.read().unwrap().heap_size_of_children(),
 			block_details: self.block_details.read().unwrap().heap_size_of_children(),
 			transaction_addresses: self.transaction_addresses.read().unwrap().heap_size_of_children(),
-			blocks_blooms: {
-				unimplemented!();
-				//self.blocks_blooms.read().unwrap().heap_size_of_children()
-			},
-			block_receipts: self.block_receipts.read().unwrap().heap_size_of_children()
+			blocks_blooms: self.blocks_blooms.read().unwrap().heap_size_of_children(),
+			block_receipts: self.block_receipts.read().unwrap().heap_size_of_children(),
 		}
 	}
 
@@ -753,15 +750,11 @@ impl BlockChain {
 					cache_man.in_use.remove(&id);
 					match id {
 						CacheID::Block(h) => { blocks.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlockDetails, h) => { block_details.remove(&h); },
-						CacheID::Extras(ExtrasIndex::TransactionAddress, h) => { transaction_addresses.remove(&h); },
-						CacheID::Extras(ExtrasIndex::BlocksBlooms, h) => {
-							unimplemented!();
-							//blocks_blooms.remove(&h);
-						},
-						CacheID::Extras(ExtrasIndex::BlockReceipts, h) => { block_receipts.remove(&h); },
-						// TODO: debris, temporary fix
-						CacheID::Extras(ExtrasIndex::BlockHash, _) => { },
+						CacheID::BlockDetails(h) => { block_details.remove(&h); }
+						CacheID::BlockHashes(h) => { block_hashes.remove(&h); }
+						CacheID::TransactionAddresses(h) => { transaction_addresses.remove(&h); }
+						CacheID::BlocksBlooms(h) => { blocks_blooms.remove(&h); }
+						CacheID::BlockReceipts(h) => { block_receipts.remove(&h); }
 					}
 				}
 				cache_man.cache_usage.push_front(HashSet::new());

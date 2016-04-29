@@ -47,34 +47,6 @@ fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
 	result
 }
 
-pub trait ExtrasIndexable {
-	fn index() -> ExtrasIndex;
-}
-
-impl ExtrasIndexable for H256 {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlockHash
-	}
-}
-
-impl ExtrasIndexable for BlockDetails {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlockDetails
-	}
-}
-
-impl ExtrasIndexable for TransactionAddress {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::TransactionAddress
-	}
-}
-
-impl ExtrasIndexable for BlockReceipts {
-	fn index() -> ExtrasIndex {
-		ExtrasIndex::BlockReceipts
-	}
-}
-
 pub struct BlockNumberKey([u8; 5]);
 
 impl Deref for BlockNumberKey {
@@ -138,6 +110,12 @@ pub struct LogGroupPosition(GroupPosition);
 impl From<bloomchain::group::GroupPosition> for LogGroupPosition {
 	fn from(position: bloomchain::group::GroupPosition) -> Self {
 		LogGroupPosition(From::from(position))
+	}
+}
+
+impl HeapSizeOf for LogGroupPosition {
+	fn heap_size_of_children(&self) -> usize {
+		self.0.heap_size_of_children()
 	}
 }
 
