@@ -113,7 +113,7 @@ impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 
 impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
-	pub fn new(mut config: Config, path: &Path, extras: Arc<T>) -> Self {
+	pub fn new(config: Config, path: &Path, extras: Arc<T>) -> Self {
 		let mut tracedb_path = path.to_path_buf();
 		tracedb_path.push("tracedb");
 		let tracesdb = Database::open_default(tracedb_path.to_str().unwrap()).unwrap();
@@ -187,16 +187,13 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 
 		let flat_traces: Vec<FlatTrace> = traces.into();
 		flat_traces.into_iter()
-			.enumerate()
-			.filter_map(|(index, trace)| {
+			.filter_map(|trace| {
 				match filter.matches(&trace) {
 					true => Some(LocalizedTrace {
-						parent: trace.parent,
-						children: trace.children,
-						depth: trace.depth,
 						action: trace.action,
 						result: trace.result,
-						trace_number: index,
+						subtraces: trace.subtraces,
+						trace_address: trace.trace_address,
 						transaction_number: tx_number,
 						transaction_hash: tx_hash.clone(),
 						block_number: block_number,
@@ -272,12 +269,10 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						.expect("Expected to find transaction hash. Database is probably corrupted");
 
 					LocalizedTrace {
-						parent: trace.parent,
-						children: trace.children,
-						depth: trace.depth,
 						action: trace.action,
 						result: trace.result,
-						trace_number: trace_position,
+						subtraces: trace.subtraces,
+						trace_address: trace.trace_address,
 						transaction_number: tx_position,
 						transaction_hash: tx_hash,
 						block_number: block_number,
@@ -297,14 +292,11 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						.expect("Expected to find transaction hash. Database is probably corrupted");
 
 					traces.into_iter()
-					.enumerate()
-					.map(|(i, trace)| LocalizedTrace {
-						parent: trace.parent,
-						children: trace.children,
-						depth: trace.depth,
+					.map(|trace| LocalizedTrace {
 						action: trace.action,
 						result: trace.result,
-						trace_number: i,
+						subtraces: trace.subtraces,
+						trace_address: trace.trace_address,
 						transaction_number: tx_position,
 						transaction_hash: tx_hash.clone(),
 						block_number: block_number,
@@ -327,14 +319,11 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 								.expect("Expected to find transaction hash. Database is probably corrupted");
 
 							traces.into_iter()
-								.enumerate()
-								.map(|(i, trace)| LocalizedTrace {
-									parent: trace.parent,
-									children: trace.children,
-									depth: trace.depth,
+								.map(|trace| LocalizedTrace {
 									action: trace.action,
 									result: trace.result,
-									trace_number: i,
+									subtraces: trace.subtraces,
+									trace_address: trace.trace_address,
 									transaction_number: tx_position,
 									transaction_hash: tx_hash.clone(),
 									block_number: block_number,
@@ -512,9 +501,6 @@ mod tests {
 
 	fn create_simple_localized_trace(block_number: BlockNumber, block_hash: H256, tx_hash: H256) -> LocalizedTrace {
 		LocalizedTrace {
-			parent: None,
-			children: vec![],
-			depth: 0,
 			action: Action::Call(Call {
 				from: Address::from(1),
 				to: Address::from(2),
@@ -523,7 +509,8 @@ mod tests {
 				input: vec![],
 			}),
 			result: Res::FailedCall,
-			trace_number: 0,
+			trace_address: vec![0],
+			subtraces: 0,
 			transaction_number: 0,
 			transaction_hash: tx_hash,
 			block_number: block_number,
