@@ -738,11 +738,11 @@ impl<V> BlockChainClient for Client<V> where V: Verifier {
 	}
 
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace> {
-		let trace_position = trace.index;
+		let trace_address = trace.address;
 		self.transaction_address(trace.transaction)
 			.and_then(|tx_address| {
 				self.block_number(BlockId::Hash(tx_address.block_hash))
-					.and_then(|number| self.tracedb.trace(number, tx_address.index, trace_position))
+					.and_then(|number| self.tracedb.trace(number, tx_address.index, trace_address))
 			})
 	}
 
