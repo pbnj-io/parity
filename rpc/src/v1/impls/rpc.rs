@@ -14,30 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interface implementation.
+//! RPC generic methods implementation.
+use std::collections::BTreeMap;
+use jsonrpc_core::*;
+use v1::traits::Rpc;
 
-macro_rules! take_weak {
-	($weak: expr) => {
-		match $weak.upgrade() {
-			Some(arc) => arc,
-			None => return Err(Error::internal_error())
+/// RPC generic methods implementation.
+pub struct RpcClient {
+	modules: BTreeMap<String, String>,
+}
+
+impl RpcClient {
+	/// Creates new `RpcClient`.
+	pub fn new(modules: BTreeMap<String, String>) -> Self {
+		RpcClient {
+			modules: modules
 		}
 	}
 }
 
-mod web3;
-mod eth;
-mod net;
-mod personal;
-mod ethcore;
-mod traces;
-mod rpc;
-
-pub use self::web3::Web3Client;
-pub use self::eth::{EthClient, EthFilterClient};
-pub use self::net::NetClient;
-pub use self::personal::PersonalClient;
-pub use self::ethcore::EthcoreClient;
-pub use self::traces::TracesClient;
-pub use self::rpc::RpcClient;
-
+impl Rpc for RpcClient {
+	fn modules(&self, _: Params) -> Result<Value, Error> {
+		let modules = self.modules.iter().fold(BTreeMap::new(), |mut map, (k, v)| {
+			map.insert(k.to_owned(), Value::String(v.to_owned()));
+			map
+		});
+		Ok(Value::Object(modules))
+	}
+}
