@@ -14,30 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interface implementation.
+//! RPC interface.
 
-macro_rules! take_weak {
-	($weak: expr) => {
-		match $weak.upgrade() {
-			Some(arc) => arc,
-			None => return Err(Error::internal_error())
-		}
+use std::sync::Arc;
+use jsonrpc_core::*;
+
+/// RPC Interface.
+pub trait Rpc: Sized + Send + Sync + 'static {
+
+	/// Returns supported modules.
+	fn modules(&self, _: Params) -> Result<Value, Error> { rpc_unimplemented!() }
+
+	/// Should be used to convert object to io delegate.
+	fn to_delegate(self) -> IoDelegate<Self> {
+		let mut delegate = IoDelegate::new(Arc::new(self));
+		// Geth 1.3.6 compatibility
+		delegate.add_method("modules", Rpc::modules);
+		// Geth 1.4.0 compatibility
+		delegate.add_method("rpc_modules", Rpc::modules);
+		delegate
 	}
 }
-
-mod web3;
-mod eth;
-mod net;
-mod personal;
-mod ethcore;
-mod traces;
-mod rpc;
-
-pub use self::web3::Web3Client;
-pub use self::eth::{EthClient, EthFilterClient};
-pub use self::net::NetClient;
-pub use self::personal::PersonalClient;
-pub use self::ethcore::EthcoreClient;
-pub use self::traces::TracesClient;
-pub use self::rpc::RpcClient;
 

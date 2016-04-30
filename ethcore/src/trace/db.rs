@@ -258,12 +258,13 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 		self.tracesdb.write(batch).unwrap();
 	}
 
-	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: usize) -> Option<LocalizedTrace> {
+	fn trace(&self, block_number: BlockNumber, tx_position: usize, trace_position: Vec<usize>) -> Option<LocalizedTrace> {
 		self.extras.block_hash(block_number)
 			.and_then(|block_hash| self.transactions_traces(&block_hash)
 				.and_then(|traces| traces.into_iter().nth(tx_position))
 				.map(Into::<Vec<FlatTrace>>::into)
-				.and_then(|traces| traces.into_iter().nth(trace_position))
+				// this may and should be optimized
+				.and_then(|traces| traces.into_iter().find(|trace| trace.trace_address == trace_position))
 				.map(|trace| {
 					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
 						.expect("Expected to find transaction hash. Database is probably corrupted");
@@ -509,7 +510,7 @@ mod tests {
 				input: vec![],
 			}),
 			result: Res::FailedCall,
-			trace_address: vec![0],
+			trace_address: vec![],
 			subtraces: 0,
 			transaction_number: 0,
 			transaction_hash: tx_hash,
@@ -585,5 +586,8 @@ mod tests {
 		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 
 		assert_eq!(None, tracedb.transaction_traces(1, 1));
+
+		assert_eq!(tracedb.trace(0, 0, vec![]).unwrap(), create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		assert_eq!(tracedb.trace(1, 0, vec![]).unwrap(), create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 	}
 }

@@ -14,30 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethereum rpc interface implementation.
+use std::collections::BTreeMap;
+use jsonrpc_core::IoHandler;
+use v1::{Rpc, RpcClient};
 
-macro_rules! take_weak {
-	($weak: expr) => {
-		match $weak.upgrade() {
-			Some(arc) => arc,
-			None => return Err(Error::internal_error())
-		}
-	}
+
+fn rpc_client() -> RpcClient {
+	let mut modules = BTreeMap::new();
+	modules.insert("rpc".to_owned(), "1.0".to_owned());
+	RpcClient::new(modules)
 }
 
-mod web3;
-mod eth;
-mod net;
-mod personal;
-mod ethcore;
-mod traces;
-mod rpc;
+#[test]
+fn rpc_modules() {
+	let rpc = rpc_client().to_delegate();
+	let io = IoHandler::new();
+	io.add_delegate(rpc);
 
-pub use self::web3::Web3Client;
-pub use self::eth::{EthClient, EthFilterClient};
-pub use self::net::NetClient;
-pub use self::personal::PersonalClient;
-pub use self::ethcore::EthcoreClient;
-pub use self::traces::TracesClient;
-pub use self::rpc::RpcClient;
+	let request = r#"{"jsonrpc": "2.0", "method": "modules", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"eth": "1.0"},"id":1}"#;
 
+	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+}

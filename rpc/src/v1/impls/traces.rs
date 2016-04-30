@@ -69,12 +69,12 @@ impl<C> Traces for TracesClient<C> where C: BlockChainClient + 'static {
 	}
 
 	fn trace(&self, params: Params) -> Result<Value, Error> {
-		from_params::<(H256, Index)>(params)
-			.and_then(|(transaction_hash, index)| {
+		from_params::<(H256, Vec<Index>)>(params)
+			.and_then(|(transaction_hash, address)| {
 				let client = take_weak!(self.client);
 				let id = TraceId {
 					transaction: TransactionId::Hash(transaction_hash),
-					index: index.value(),
+					address: address.into_iter().map(|i| i.value()).collect()
 				};
 				let trace = client.trace(id);
 				let trace = trace.map(Trace::from);

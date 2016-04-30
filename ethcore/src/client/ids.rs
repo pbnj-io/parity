@@ -48,8 +48,8 @@ pub enum TransactionId {
 pub struct TraceId {
 	/// Transaction
 	pub transaction: TransactionId,
-	/// Trace index within transaction.
-	pub index: usize,
+	/// Trace address within transaction.
+	pub address: Vec<usize>,
 }
 
 /// Uniquely identifies Uncle.
