@@ -78,22 +78,6 @@ impl Key<BlockDetails> for H256 {
 	}
 }
 
-impl Key<TransactionAddress> for H256 {
-	type Target = H264;
-
-	fn key(&self) -> H264 {
-		with_index(self, ExtrasIndex::TransactionAddress)
-	}
-}
-
-impl Key<BlockReceipts> for H256 {
-	type Target = H264;
-
-	fn key(&self) -> H264 {
-		with_index(self, ExtrasIndex::BlockReceipts)
-	}
-}
-
 pub struct LogGroupKey([u8; 6]);
 
 impl Deref for LogGroupKey {
@@ -130,6 +114,22 @@ impl Key<BloomGroup> for LogGroupPosition {
 			ptr::copy(&[self.0.index] as *const u32 as *const u8, result.as_mut_ptr().offset(2), 4);
 		}
 		LogGroupKey(result)
+	}
+}
+
+impl Key<TransactionAddress> for H256 {
+	type Target = H264;
+
+	fn key(&self) -> H264 {
+		with_index(self, ExtrasIndex::TransactionAddress)
+	}
+}
+
+impl Key<BlockReceipts> for H256 {
+	type Target = H264;
+
+	fn key(&self) -> H264 {
+		with_index(self, ExtrasIndex::BlockReceipts)
 	}
 }
 
